@@ -13,13 +13,13 @@ Project home:
 
 Latest release version: `0.1.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
-Maven dependency:
+Maven dependency (available soon):
 
 ```xml
 <dependency>
 	<groupId>com.github.ddth</groupId>
 	<artifactId>cassdir</artifactId>
-	<version>0.1.0</version>
+	<version>not-available-yet</version>
 </dependency>
 ```
 
