@@ -18,7 +18,7 @@ Project home:
 
 ## Installation ##
 
-Latest release version: `0.1.0`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
+Latest release version: `0.1.0.1`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
 Maven dependency (available soon):
 
@@ -26,7 +26,7 @@ Maven dependency (available soon):
 <dependency>
 	<groupId>com.github.ddth</groupId>
 	<artifactId>cassdir</artifactId>
-	<version>0.1.0</version>
+	<version>0.1.0.1</version>
 </dependency>
 ```
 
