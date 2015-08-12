@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -27,37 +29,23 @@ import org.apache.lucene.index.Term;
 
 import ch.qos.logback.classic.Level;
 
-import com.datastax.driver.core.ConsistencyLevel;
-import com.github.ddth.cacheadapter.redis.RedisCacheFactory;
+import com.github.ddth.cacheadapter.guava.GuavaCacheFactory;
 import com.github.ddth.com.cassdir.CassandraDirectory;
 
-public class QndCassandraDirIndexDemo extends BaseQndCassandraDir {
+public class QndCassandraDirIndexDemoMultiThread extends BaseQndCassandraDir {
 
     static final long MAX_ITEMS = 100;
     static final AtomicLong COUNTER = new AtomicLong(0);
+    static final ExecutorService ES = Executors.newFixedThreadPool(32);
     static final AtomicLong JOBS_DONE = new AtomicLong(0);
 
     public static void main(String args[]) throws Exception {
         initLoggers(Level.ERROR);
         CassandraDirectory DIR = new CassandraDirectory(CASS_HOSTSANDPORTS, CASS_USER,
                 CASS_PASSWORD, CASS_KEYSPACE);
-        // GuavaCacheFactory cacheFactory = new GuavaCacheFactory();
-        RedisCacheFactory cacheFactory = new RedisCacheFactory();
-        {
-            cacheFactory.setCompactMode(true);
-            cacheFactory.setRedisHost("localhost");
-            cacheFactory.setRedisPort(6379);
-        }
+        GuavaCacheFactory cacheFactory = new GuavaCacheFactory();
         cacheFactory.init();
-        DIR.setCacheFactory(cacheFactory).setCacheName("CASSDIR");
-        {
-            DIR.setConsistencyLevelReadFileData(ConsistencyLevel.LOCAL_ONE);
-            DIR.setConsistencyLevelWriteFileData(ConsistencyLevel.LOCAL_ONE);
-            DIR.setConsistencyLevelReadFileInfo(ConsistencyLevel.LOCAL_ONE);
-            DIR.setConsistencyLevelWriteFileInfo(ConsistencyLevel.LOCAL_ONE);
-            DIR.setConsistencyLevelRemoveFileData(ConsistencyLevel.LOCAL_ONE);
-            DIR.setConsistencyLevelRemoveFileInfo(ConsistencyLevel.LOCAL_ONE);
-        }
+        DIR.setCacheFactory(cacheFactory);
         DIR.init();
 
         long t1 = System.currentTimeMillis();
@@ -71,6 +59,9 @@ public class QndCassandraDirIndexDemo extends BaseQndCassandraDir {
                     .get("/Users/btnguyen/Workspace/Apps/Apache-Cassandra-2.1.8/javadoc/");
             indexDocs(iw, docDir);
 
+            while (JOBS_DONE.get() < MAX_ITEMS) {
+                Thread.sleep(1);
+            }
             iw.commit();
             iw.close();
         } finally {
@@ -79,6 +70,7 @@ public class QndCassandraDirIndexDemo extends BaseQndCassandraDir {
         long t2 = System.currentTimeMillis();
         System.out.println("Finished in " + (t2 - t1) / 1000.0 + " sec");
         Thread.sleep(3000);
+        ES.shutdown();
     }
 
     static void indexDocs(final IndexWriter writer, Path path) throws IOException {
@@ -87,11 +79,7 @@ public class QndCassandraDirIndexDemo extends BaseQndCassandraDir {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                         throws IOException {
-                    try {
-                        indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
-                    } catch (IOException ignore) {
-                        // don't index files that can't be read.
-                    }
+                    indexDoc(writer, file, attrs.lastModifiedTime().toMillis());
                     return FileVisitResult.CONTINUE;
                 }
             });
@@ -100,35 +88,48 @@ public class QndCassandraDirIndexDemo extends BaseQndCassandraDir {
         }
     }
 
-    static void indexDoc(IndexWriter writer, Path file, long lastModified) throws IOException {
+    static void indexDoc(final IndexWriter writer, final Path file, final long lastModified) {
         long counter = COUNTER.incrementAndGet();
         if (counter > MAX_ITEMS) {
             return;
         }
         System.out.println("Counter: " + counter);
 
-        try (InputStream stream = Files.newInputStream(file)) {
-            Document doc = new Document();
+        Runnable command = new Runnable() {
+            @Override
+            public void run() {
+                try (InputStream stream = Files.newInputStream(file)) {
+                    Document doc = new Document();
 
-            Field pathField = new StringField("path", file.toString(), Field.Store.YES);
-            doc.add(pathField);
+                    Field pathField = new StringField("path", file.toString(), Field.Store.YES);
+                    doc.add(pathField);
 
-            doc.add(new LongField("modified", lastModified, Field.Store.NO));
+                    doc.add(new LongField("modified", lastModified, Field.Store.NO));
 
-            doc.add(new TextField("contents", new BufferedReader(new InputStreamReader(stream,
-                    StandardCharsets.UTF_8))));
+                    doc.add(new TextField("contents", new BufferedReader(new InputStreamReader(
+                            stream, StandardCharsets.UTF_8))));
 
-            if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
-                System.out.println("adding " + file);
-                writer.addDocument(doc);
-            } else {
-                System.out.println("updating " + file);
-                writer.updateDocument(new Term("path", file.toString()), doc);
+                    if (writer.getConfig().getOpenMode() == OpenMode.CREATE) {
+                        System.out.println("adding " + file);
+                        writer.addDocument(doc);
+                    } else {
+                        System.out.println("updating " + file);
+                        writer.updateDocument(new Term("path", file.toString()), doc);
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    try {
+                        writer.rollback();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+                } finally {
+                    long jobsDone = JOBS_DONE.incrementAndGet();
+                    System.out.println("Jobs done: " + jobsDone);
+                }
             }
-        } finally {
-            long jobsDone = JOBS_DONE.incrementAndGet();
-            System.out.println("Jobs done: " + jobsDone);
-        }
+        };
+        ES.execute(command);
     }
 
 }

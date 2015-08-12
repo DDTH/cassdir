@@ -6,7 +6,7 @@ import com.github.ddth.commons.utils.IdGenerator;
 import com.github.ddth.dao.BaseBo;
 
 /**
- * Represents a file record.
+ * File metadata info.
  * 
  * @author Thanh Nguyen <btnguyen2k@gmail.com>
  * @since 0.1.0

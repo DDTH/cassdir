@@ -13,18 +13,29 @@ import org.apache.lucene.index.Term;
 
 import ch.qos.logback.classic.Level;
 
+import com.github.ddth.cacheadapter.redis.RedisCacheFactory;
 import com.github.ddth.com.cassdir.CassandraDirectory;
 
 public class QndCassandraDirIndex extends BaseQndCassandraDir {
 
     public static void main(String args[]) throws Exception {
-        initLoggers(Level.DEBUG);
-
+        initLoggers(Level.INFO);
         CassandraDirectory DIR = new CassandraDirectory(CASS_HOSTSANDPORTS, CASS_USER,
                 CASS_PASSWORD, CASS_KEYSPACE);
-        try {
-            DIR.init();
+        // GuavaCacheFactory cacheFactory = new GuavaCacheFactory();
+        RedisCacheFactory cacheFactory = new RedisCacheFactory();
+        {
+            cacheFactory.setCacheNamePrefix("casdir_");
+            cacheFactory.setCompactMode(true);
+            cacheFactory.setRedisHost("localhost");
+            cacheFactory.setRedisPort(6379);
+        }
+        cacheFactory.init();
+        DIR.setCacheFactory(cacheFactory).setCacheName("CASSDIR");
+        DIR.init();
 
+        long t1 = System.currentTimeMillis();
+        try {
             Analyzer analyzer = new StandardAnalyzer();
             IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(OpenMode.CREATE_OR_APPEND);
@@ -39,11 +50,11 @@ public class QndCassandraDirIndex extends BaseQndCassandraDir {
 
             iw.close();
         } finally {
-            System.out.println(DIR.files);
             DIR.destroy();
         }
-
-        Thread.sleep(10000);
+        long t2 = System.currentTimeMillis();
+        System.out.println("Finished in " + (t2 - t1) / 1000.0 + " sec");
+        Thread.sleep(3000);
     }
 
 }

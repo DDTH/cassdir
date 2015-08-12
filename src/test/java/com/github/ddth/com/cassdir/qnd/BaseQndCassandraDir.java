@@ -6,12 +6,13 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 
 import com.github.ddth.com.cassdir.CassandraDirectory;
-import com.github.ddth.com.cassdir.internal.CassandraIndexInput;
-import com.github.ddth.com.cassdir.internal.CassandraIndexOutput;
+import com.github.ddth.com.cassdir.CassandraDirectory.CassandraIndexInput;
+import com.github.ddth.com.cassdir.CassandraDirectory.CassandraIndexOutput;
 
 public class BaseQndCassandraDir {
 
-    public static final String CASS_HOSTSANDPORTS = "localhost:9042";
+    public static final String CASS_HOSTSANDPORTS = "10.30.55.41:9042";
+    // public static final String CASS_HOSTSANDPORTS = "localhost:9042";
     public static final String CASS_USER = "tsc";
     public static final String CASS_PASSWORD = "tsc";
     public static final String CASS_KEYSPACE = "tsc_demo";
