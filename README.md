@@ -20,7 +20,7 @@ Project home:
 
 Latest release version: `0.1.0.1`. See [RELEASE-NOTES.md](RELEASE-NOTES.md).
 
-Maven dependency (available soon):
+Maven dependency:
 
 ```xml
 <dependency>
