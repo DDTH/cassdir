@@ -1,5 +1,6 @@
 package com.github.ddth.com.cassdir;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.MessageFormat;
@@ -487,7 +488,7 @@ public class CassandraDirectory extends BaseDirectory {
     public IndexOutput createOutput(String name, IOContext ioContext) throws IOException {
         FileInfo fileInfo = ensureFile(name);
         if (fileInfo == null) {
-            throw new IOException("File [" + name + "] not found!");
+            throw new IOException("File [" + name + "] cannot be created!");
         }
         return new CassandraIndexOutput(fileInfo);
     }
@@ -499,7 +500,7 @@ public class CassandraDirectory extends BaseDirectory {
     public IndexInput openInput(String name, IOContext ioContext) throws IOException {
         FileInfo fileInfo = getFileInfo(name);
         if (fileInfo == null) {
-            throw new IOException("File [" + name + "] not found!");
+            throw new FileNotFoundException("File [" + name + "] not found!");
         }
         return new CassandraIndexInput(this, fileInfo);
     }
@@ -549,7 +550,7 @@ public class CassandraDirectory extends BaseDirectory {
     public long fileLength(String name) throws IOException {
         FileInfo fileInfo = getFileInfo(name);
         if (fileInfo == null) {
-            throw new IOException("File [" + name + "] not found!");
+            throw new FileNotFoundException("File [" + name + "] not found!");
         }
         return fileInfo.size();
     }
